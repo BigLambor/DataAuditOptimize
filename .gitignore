@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+
+# Virtual envs
+.venv/
+venv/
+ENV/
+env/
+
+# Logs / runtime artifacts
+*.log
+logs/
+state/
+python/state/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Java / Maven
+java/**/target/
+java/**/.classpath
+java/**/.project
+java/**/.settings/
+
+# Generated jars (optional: keep source jar build outputs out of repo)
+*.jar
+
+
