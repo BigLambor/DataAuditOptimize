@@ -1,0 +1,8 @@
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/model/FileError.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/counter/RowCounter.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/counter/ParquetRowCounter.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/counter/CounterFactory.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/HdfsCounter.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/counter/OrcRowCounter.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/model/CountResult.java
+/Users/isadmin/MagicSpace/DataAuditOptimize/java/hdfs-counter/src/main/java/com/audit/counter/TextFileRowCounter.java

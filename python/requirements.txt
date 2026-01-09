@@ -1,0 +1,25 @@
+# HDFS Audit Python Dependencies
+
+# Configuration parsing
+PyYAML>=6.0.1
+
+# MySQL database
+pymysql>=1.1.0
+
+# ClickHouse database (for fetching completed tasks from scheduling platform)
+clickhouse-driver>=0.2.6
+
+# Connection pooling
+DBUtils>=3.0.3
+
+# Date/time utilities
+python-dateutil>=2.8.2
+
+# CLI argument parsing (built-in, but listed for clarity)
+# argparse is part of standard library
+
+# Logging (built-in)
+# logging is part of standard library
+
+# Type hints (built-in in Python 3.5+)
+# typing is part of standard library

@@ -1,0 +1,80 @@
+# =============================================================================
+# 数据库连接配置
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# MySQL 配置 - 用于存储稽核结果
+# -----------------------------------------------------------------------------
+mysql:
+  host: "localhost"
+  port: 3306
+  database: "data_audit"
+  user: "audit_user"
+  password: "your_password_here"
+  charset: "utf8mb4"
+
+# -----------------------------------------------------------------------------
+# ClickHouse 配置 - 用于从调度平台获取已完成任务清单
+# -----------------------------------------------------------------------------
+clickhouse:
+  host: "localhost"
+  port: 9000                    # Native 协议端口，HTTP 端口通常是 8123
+  database: "scheduler"
+  user: "default"
+  password: ""
+  # 时区口径（可选）：用于把 hours_lookback 的窗口与 ClickHouse 的 end_time 对齐
+  # 常见取值: "Asia/Shanghai", "UTC"
+  timezone: "Asia/Shanghai"
+  # -----------------------------------------------------------------------------
+  # Watermark 增量拉取（推荐开启，用于“保证不漏/不断点”）
+  # -----------------------------------------------------------------------------
+  # 说明：
+  #   - 启用后，会把上次成功运行的窗口 end_time 持久化到文件（watermark_path）
+  #   - 下次从该时间点继续查询：end_time >= last_end_time AND end_time < now
+  #   - 并额外回扫 watermark_overlap_seconds，用于抵抗 ClickHouse 写入/同步延迟
+  #
+  # 可选配置：
+  watermark_enabled: true
+  watermark_path: "../state/clickhouse_watermark.json"
+  watermark_overlap_seconds: 600   # 默认 10 分钟
+  # 当 watermark 距离当前时间太久（例如停跑 3 天），为了避免一次性回补过大窗口导致压力过高，
+  # 会把单次查询窗口限制为 watermark_max_window_hours（成功后 watermark 推进到该窗口 end_time，
+  # 下次继续追赶，直到追平当前时间）。
+  watermark_max_window_hours: 24.0
+  # 查询已完成任务的 SQL 模板
+  # 可用变量: {start_time}, {end_time}, {data_date}
+  query_template: |
+    SELECT DISTINCT task_name
+    FROM task_instance
+    WHERE status = 'SUCCESS'
+      AND end_time >= '{start_time}'
+      AND end_time < '{end_time}'
+      -- 如果你的调度表有业务日期字段，可打开下一行作为二次过滤，减少漏/重
+      -- AND biz_date = '{data_date}'
+
+# =============================================================================
+# 配置说明
+# =============================================================================
+# 
+# MySQL 配置:
+#   host:     MySQL 服务器地址
+#   port:     MySQL 端口，默认 3306
+#   database: 数据库名称
+#   user:     数据库用户名
+#   password: 数据库密码
+#   charset:  字符集，推荐 utf8mb4
+#
+# ClickHouse 配置:
+#   host:     ClickHouse 服务器地址
+#   port:     ClickHouse Native 协议端口，默认 9000
+#   database: 调度平台数据库名称
+#   user:     ClickHouse 用户名
+#   password: ClickHouse 密码
+#   query_template: 查询已完成任务的 SQL 模板
+#                   - 需返回 task_name 字段
+#                   - 支持 {start_time}, {end_time} 变量
+#
+# 安全提示:
+#   - 生产环境建议使用环境变量或密钥管理服务存储密码
+#   - 不要将包含真实密码的配置文件提交到版本控制系统
+# =============================================================================
