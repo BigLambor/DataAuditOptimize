@@ -92,7 +92,7 @@ class HdfsAuditRunner:
         Returns:
             Tuple of (job, result)
         """
-        logger.info(f"Processing job: {job['table_name']} (province_id={job.get('province_id', '')})")
+        logger.info(f"Processing job: {job['table_name']} (platform_id={job.get('platform_id', '')})")
         result = self.counter_client.count_job(job)
         return job, result
     
@@ -124,9 +124,14 @@ class HdfsAuditRunner:
         start_time = datetime.now()
         logger.info(f"Starting audit run at {start_time}")
         
-        # Resolve data date
-        resolved_date = self.config_loader.resolve_data_date(data_date)
-        logger.info(f"Data date: {resolved_date}")
+        # Resolve data date (if explicitly provided)
+        # If data_date is None, build_audit_jobs will auto-resolve per period_type
+        if data_date is not None:
+            resolved_date = self.config_loader.resolve_data_date(data_date)
+            logger.info(f"Data date: {resolved_date} (explicit)")
+        else:
+            resolved_date = None
+            logger.info("Data date: auto (daily/monthly -> yesterday, hourly/minutely -> today)")
         
         # Get completed tasks
         if task_names:
@@ -289,8 +294,8 @@ class HdfsAuditRunner:
                     'table': job['table_name'],
                     'path': job['hdfs_path'],
                     'interface_id': job.get('interface_id', ''),
+                    'platform_id': job.get('platform_id', ''),
                     'partner_id': job.get('partner_id', ''),
-                    'province_id': job.get('province_id', ''),
                     'status': 'dry_run'
                 })
         elif concurrency <= 1:
@@ -330,7 +335,7 @@ class HdfsAuditRunner:
     def _run_serial(self, jobs: List[Dict[str, Any]], results: dict) -> dict:
         """Run jobs serially (one by one)"""
         for i, job in enumerate(jobs, 1):
-            logger.info(f"Processing job {i}/{len(jobs)}: {job['table_name']} (province_id={job.get('province_id', '')})")
+            logger.info(f"Processing job {i}/{len(jobs)}: {job['table_name']} (platform_id={job.get('platform_id', '')})")
             
             try:
                 result = self.counter_client.count_job(job)
@@ -343,8 +348,8 @@ class HdfsAuditRunner:
                     'table': job['table_name'],
                     'path': job['hdfs_path'],
                     'interface_id': job.get('interface_id', ''),
+                    'platform_id': job.get('platform_id', ''),
                     'partner_id': job.get('partner_id', ''),
-                    'province_id': job.get('province_id', ''),
                     'status': 'error',
                     'error': str(e)
                 })
@@ -382,8 +387,8 @@ class HdfsAuditRunner:
                         'table': job['table_name'],
                         'path': job['hdfs_path'],
                         'interface_id': job.get('interface_id', ''),
+                        'platform_id': job.get('platform_id', ''),
                         'partner_id': job.get('partner_id', ''),
-                        'province_id': job.get('province_id', ''),
                         'status': 'error',
                         'error': str(e)
                     })
@@ -404,8 +409,8 @@ class HdfsAuditRunner:
             'table': job['table_name'],
             'path': job['hdfs_path'],
             'interface_id': job.get('interface_id', ''),
+            'platform_id': job.get('platform_id', ''),
             'partner_id': job.get('partner_id', ''),
-            'province_id': job.get('province_id', ''),
             'row_count': result.row_count,
             'status': result.status
         })
@@ -472,18 +477,20 @@ Examples:
     
     parser.add_argument(
         '--jar',
-        default='../java/hdfs-counter/target/hdfs-counter-1.0.0.jar',
-        help='Path to hdfs-counter.jar'
+        default=os.environ.get('HDFS_COUNTER_JAR', './hdfs-counter-1.0.0.jar'),
+        help='Path to hdfs-counter.jar (env: HDFS_COUNTER_JAR)'
     )
     
     parser.add_argument(
         '--java-home',
-        help='JAVA_HOME path (optional)'
+        default=os.environ.get('JAVA_HOME'),
+        help='JAVA_HOME path (env: JAVA_HOME)'
     )
     
     parser.add_argument(
         '--hadoop-conf-dir',
-        help='HADOOP_CONF_DIR path (optional)'
+        default=os.environ.get('HADOOP_CONF_DIR'),
+        help='HADOOP_CONF_DIR path (env: HADOOP_CONF_DIR)'
     )
     
     parser.add_argument(
@@ -626,8 +633,8 @@ def main():
             print("\nDetails:")
             for detail in results['details']:
                 status_icon = "✓" if detail['status'] == 'success' else "✗" if detail['status'] in ('failed', 'error') else "○"
-                province_info = f" [province:{detail.get('province_id', '')}]" if detail.get('province_id') else ""
-                print(f"  {status_icon} {detail['table']}{province_info}: {detail.get('row_count', 'N/A')} rows - {detail['status']}")
+                platform_info = f" [platform:{detail.get('platform_id', '')}]" if detail.get('platform_id') else ""
+                print(f"  {status_icon} {detail['table']}{platform_info}: {detail.get('row_count', 'N/A')} rows - {detail['status']}")
         
         # Exit code based on results
         if results['failed'] > 0:

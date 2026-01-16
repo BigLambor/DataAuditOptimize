@@ -1,0 +1,154 @@
+# =============================================================================
+# HDFS 数据稽核配置模板
+# =============================================================================
+# 版本: 1.0
+# 用途: 定义调度任务与 Hive 表的映射关系，由 generate_config.py 展开生成 config.yml
+#
+# 设计原则:
+#   1. 客户只需填写 schedules 区的业务配置
+#   2. template_vars 定义循环变量规则，一般无需修改
+#   3. defaults 定义运行时参数，按需调整
+
+# =============================================================================
+# 第一部分：循环变量定义（loop_var 展开规则）
+# =============================================================================
+# 生成脚本根据此配置自动展开 schedules 中的 ${变量名}
+#
+# 变量类型说明:
+#   - type: range    范围型，需指定 start/end/step
+#   - type: computed 计算型，需指定 rule（由脚本内置逻辑计算）
+#   - type: enum     枚举型，需指定 values 列表
+#
+# loop_var 语法:
+#   - 单变量: "prov_id"           -> 展开 31 个任务
+#   - 多变量: "prov_id&data_hour" -> 展开 31 × 24 = 744 个任务（笛卡尔积）
+
+template_vars:
+  # 省份编码（31个省）
+  prov_id:
+    type: range
+    start: 10100
+    end: 13100
+    step: 100
+    description: "省份编码，10100-13100 共 31 个值"
+
+  # 小时（24小时）
+  data_hour:
+    type: range
+    start: 0
+    end: 23
+    step: 1
+    description: "小时，0-23 共 24 个值"
+
+  # 数据日期所在月份（计算型）
+  data_month:
+    type: computed
+    rule: data_month
+    format: "YYYYMM"
+    description: "数据日期所在月份（如 20260101 -> 202601）"
+
+  # 业务日期（特殊变量，由 defaults.data_date 解析，无需在此定义展开规则）
+  # data_date 不参与 loop_var 展开，仅做模板替换
+
+
+# =============================================================================
+# 第二部分：运行时默认配置
+# =============================================================================
+defaults:
+  # 业务日期（仅命令行 --date 显式传入时使用，否则按 period_type 自动决定）
+  # 自动规则: daily/monthly -> yesterday, hourly/minutely -> today
+  # 命令行示例: python main.py --date 20260115
+  data_date: "${yesterday}"
+
+  # Python 并发数（同时稽核几个表）
+  python_concurrency: 5
+
+  # hdfs-counter.jar 参数
+  jar_options:
+    threads: 10              # 单个 jar 内部并发线程数
+
+  # 安全限流
+  limits:
+    max_python_concurrency: 20
+    max_jar_threads: 50
+    max_effective_parallelism: 200
+
+
+# =============================================================================
+# 第三部分：稽核任务配置（客户主要填写区域）
+# =============================================================================
+# 字段说明:
+#   task_name:          调度平台任务名（支持 ${变量} 模板）
+#   interface_id:       接口号
+#   platform_id:        平台ID（支持 ${变量} 模板）
+#   partner_id:         合作伙伴ID
+#   period_type:        周期类型（daily/monthly/hourly/minutely）
+#   loop_var:           循环变量（可选，多个用 & 连接）
+#   tables:             该任务产出的表列表
+#     - name:           Hive 表全名（database.table）
+#     - hdfs_path:      HDFS 基础路径（不含分区）
+#     - format:         文件格式（orc/parquet/textfile）
+#     - partition_template: 分区模板（支持 ${data_date}, ${prov_id} 等变量）
+#     - delimiter:      (可选) textfile 分隔符，默认 \n
+#     - threads:        (可选) 覆盖全局 jar threads
+
+schedules:
+  # -------------------------------------------------------------------------
+  # 示例1: 省级日表（按 prov_id 展开 31 个任务）
+  # -------------------------------------------------------------------------
+  - task_name: "P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_${prov_id}"
+    interface_id: "03041"
+    platform_id: "${prov_id}"
+    partner_id: "2"
+    period_type: "daily"
+    loop_var: "prov_id"
+    tables:
+      - name: "ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET"
+        hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset"
+        format: "orc"
+        partition_template: "statis_ymd=${data_date}/prov_id=${prov_id}"
+
+  # -------------------------------------------------------------------------
+  # 示例2: 一级月表（无 loop_var，单任务）
+  # -------------------------------------------------------------------------
+  - task_name: "70018_P_TO_M_ACCT_AM_PAY_FLOW"
+    interface_id: "07001"
+    platform_id: "70018"
+    partner_id: "2"
+    period_type: "monthly"
+    tables:
+      - name: "ods_bss.TO_M_ACCT_AM_PAY_FLOW"
+        hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_m_acct_am_pay_flow"
+        format: "orc"
+        partition_template: "statis_ym=${data_month}"
+
+  # -------------------------------------------------------------------------
+  # 示例3: 省级日表（按 prov_id 展开）
+  # -------------------------------------------------------------------------
+  - task_name: "${prov_id}_P_TO_D_EVNT_BU_5G_SA_CDR"
+    interface_id: "04038"
+    platform_id: "${prov_id}"
+    partner_id: "2"
+    period_type: "daily"
+    loop_var: "prov_id"
+    tables:
+      - name: "ods_bss.TO_D_EVNT_BU_5G_SA_CDR"
+        hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr"
+        format: "orc"
+        partition_template: "statis_ymd=${data_date}/prov_id=${prov_id}"
+
+  # -------------------------------------------------------------------------
+  # 示例4: 省级小时表（按 prov_id & data_hour 展开 31×24=744 个任务）
+  # 注意: period_type=hourly 时，${data_date} 自动解析为 today（当天）
+  # -------------------------------------------------------------------------
+  # - task_name: "${prov_id}_P_TO_H_XXX_${data_hour}"
+  #   interface_id: "xxxxx"
+  #   platform_id: "${prov_id}"
+  #   partner_id: "2"
+  #   period_type: "hourly"
+  #   loop_var: "prov_id&data_hour"
+  #   tables:
+  #     - name: "ods_bss.TO_H_XXX"
+  #       hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_h_xxx"
+  #       format: "orc"
+  #       partition_template: "statis_ymd=${data_date}/hour=${data_hour}/prov_id=${prov_id}/"

@@ -186,13 +186,18 @@ class ConfigLoader:
             except ValueError:
                 raise ValueError(f"Invalid date format: {data_date}. Expected YYYYMMDD")
     
-    def build_audit_jobs(self, completed_tasks: List[str], data_date: str) -> List[Dict[str, Any]]:
+    def build_audit_jobs(self, completed_tasks, data_date: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Build list of audit jobs based on completed tasks
         
         Args:
-            completed_tasks: List of completed task names
-            data_date: Data date in YYYYMMDD format
+            completed_tasks: 已完成任务，支持两种格式:
+                - List[str]: 简单的任务名列表（旧格式，向后兼容）
+                - Dict[str, Dict]: 任务名 -> 元数据字典（新格式）
+                  元数据包含: period_type, batch_no, data_date, data_month, data_hour
+            data_date: Data date in YYYYMMDD format, or None to auto-resolve
+                       - If provided: used for all jobs (overrides batch_no derived date)
+                       - If None: prefer batch_no derived date, fallback to period_type rules
             
         Returns:
             List of audit job configurations
@@ -200,21 +205,86 @@ class ConfigLoader:
         jobs = []
         jar_options = self.get_jar_options()
         
+        # 统一转换为 dict 格式，方便后续处理
+        if isinstance(completed_tasks, list):
+            # 旧格式：List[str] -> Dict[str, None]
+            completed_tasks_dict = {name: None for name in completed_tasks}
+        else:
+            # 新格式：已经是 dict
+            completed_tasks_dict = completed_tasks
+        
         for schedule in self.get_schedules():
             task_name = schedule['task_name']
             
-            if task_name not in completed_tasks:
+            if task_name not in completed_tasks_dict:
                 continue
             
+            # 获取任务元数据（如果有）
+            task_meta = completed_tasks_dict.get(task_name)
+            
             # 获取调度级别的字段
-            interface_id = schedule.get('interface_id', '')
-            partner_id = schedule.get('partner_id', '')
+            interface_id = str(schedule.get('interface_id', ''))
+            platform_id = str(schedule.get('platform_id', ''))
+            partner_id = str(schedule.get('partner_id', ''))
+            config_period_type = schedule.get('period_type', 'daily')
+            
+            # 校验 period_type 是否一致
+            if task_meta and task_meta.get('period_type'):
+                ck_period_type = task_meta.get('period_type')
+                if ck_period_type != config_period_type:
+                    logger.warning(
+                        f"任务 {task_name} 的 period_type 不匹配: "
+                        f"config={config_period_type}, ClickHouse={ck_period_type}，跳过此任务"
+                    )
+                    continue
+            
+            # 解析业务日期，优先级: 命令行参数 > batch_no解析 > period_type自动推导
+            if data_date is not None:
+                resolved_month = data_date[:6] if len(data_date) >= 6 else None
+                resolved_hour = None
+                # monthly 任务不需要 data_date，只需要 data_month
+                if config_period_type == 'monthly':
+                    resolved_date = None
+                else:
+                    resolved_date = data_date
+            elif task_meta:
+                # 从 batch_no 解析的日期
+                resolved_date = task_meta.get('data_date')
+                resolved_month = task_meta.get('data_month')
+                resolved_hour = task_meta.get('data_hour')
+                
+                # 如果 batch_no 没有解析出日期，回退到自动推导
+                if config_period_type == 'monthly':
+                    # monthly 任务：确保 data_month 有值，data_date 强制为 None
+                    resolved_date = None
+                    if not resolved_month:
+                        fallback_date = self.resolve_data_date_for_period(config_period_type)
+                        resolved_month = fallback_date[:6]
+                        logger.warning(f"任务 {task_name} 的 data_month 为空，使用自动推导: {resolved_month}")
+                elif not resolved_date:
+                    # daily/hourly 任务：确保 data_date 有值
+                    resolved_date = self.resolve_data_date_for_period(config_period_type)
+                    resolved_month = resolved_date[:6] if resolved_date else None
+            else:
+                # 旧格式（list 而非 dict），使用自动推导
+                resolved_date = self.resolve_data_date_for_period(config_period_type)
+                resolved_month = resolved_date[:6] if resolved_date else None
+                resolved_hour = None
+                
+                # monthly 任务可以不需要 data_date
+                if config_period_type == 'monthly':
+                    resolved_date = None
             
             for table in schedule['tables']:
                 # Build full HDFS path with optional partition
                 partition_template = table.get('partition_template')
                 if partition_template:
-                    partition = self._resolve_partition(partition_template, data_date)
+                    partition = self._resolve_partition_extended(
+                        partition_template, 
+                        data_date=resolved_date,
+                        data_month=resolved_month,
+                        data_hour=resolved_hour
+                    )
                     full_path = self._join_hdfs_path(table['hdfs_path'], partition)
                 else:
                     full_path = table['hdfs_path']
@@ -231,26 +301,105 @@ class ConfigLoader:
                 # Get delimiter for textfile
                 delimiter = table.get('delimiter', '\\n')
                 
-                # 获取表级别的 province_id（可选）
-                province_id = table.get('province_id', '')
+                # batch_no: 确保为字符串，避免 None
+                batch_no = ''
+                if task_meta and task_meta.get('batch_no'):
+                    batch_no = str(task_meta.get('batch_no'))
                 
                 job = {
                     'task_name': task_name,
                     'interface_id': interface_id,
+                    'platform_id': platform_id,
                     'partner_id': partner_id,
-                    'province_id': province_id,
+                    'period_type': config_period_type,
                     'table_name': table['name'],
                     'hdfs_path': full_path,
                     'format': table['format'].lower(),
                     'threads': threads,
                     'delimiter': delimiter,
-                    'data_date': data_date
+                    'data_date': resolved_date,
+                    'data_month': resolved_month,
+                    'data_hour': resolved_hour,
+                    'batch_no': batch_no
                 }
                 
+                # 校验 hdfs_path 是否包含未替换的变量
+                if '${' in full_path:
+                    logger.warning(
+                        f"跳过任务 {task_name}/{table['name']}: hdfs_path 包含未替换的变量: {full_path}"
+                    )
+                    continue
+                
                 jobs.append(job)
-                logger.info(f"Created audit job for table: {table['name']}, path: {full_path}, province_id: {province_id}")
+                logger.info(
+                    f"Created audit job: table={table['name']}, path={full_path}, "
+                    f"data_date={resolved_date}, data_month={resolved_month}, data_hour={resolved_hour}"
+                )
         
         return jobs
+    
+    def _resolve_partition_extended(self, partition_template: str, 
+                                    data_date: Optional[str] = None,
+                                    data_month: Optional[str] = None,
+                                    data_hour: Optional[str] = None) -> str:
+        """
+        Resolve partition template with extended variables
+        
+        Args:
+            partition_template: Template like "statis_ymd=${data_date}/hour=${data_hour}"
+            data_date: Data date string (YYYYMMDD format)
+            data_month: Data month string (YYYYMM format)
+            data_hour: Data hour string (HH format, 00-23)
+            
+        Returns:
+            Resolved partition string
+        """
+        result = partition_template
+        
+        # 替换 ${data_date}
+        if data_date:
+            result = result.replace('${data_date}', data_date)
+        
+        # 替换 ${data_month}
+        if data_month:
+            result = result.replace('${data_month}', data_month)
+        elif data_date and len(data_date) >= 6:
+            # 从 data_date 推导 data_month
+            result = result.replace('${data_month}', data_date[:6])
+        
+        # 替换 ${data_hour}
+        if data_hour:
+            result = result.replace('${data_hour}', data_hour)
+        
+        return result
+    
+    def resolve_data_date_for_period(self, period_type: str) -> str:
+        """
+        Resolve data date based on period type
+        
+        Rules:
+            - daily: yesterday (YYYYMMDD)
+            - monthly: last month's last day (for deriving YYYYMM)
+            - hourly/minutely: today (YYYYMMDD)
+        
+        Args:
+            period_type: Period type string (daily, monthly, hourly, minutely)
+            
+        Returns:
+            Data date string in YYYYMMDD format
+        """
+        today = datetime.now()
+        if period_type in ('hourly', 'minutely'):
+            return today.strftime('%Y%m%d')
+        elif period_type == 'monthly':
+            # 月度任务默认稽核上个月的数据
+            # 返回上个月的最后一天，这样取前6位就是上个月的 YYYYMM
+            first_of_this_month = today.replace(day=1)
+            last_of_prev_month = first_of_this_month - timedelta(days=1)
+            return last_of_prev_month.strftime('%Y%m%d')
+        else:
+            # daily or unknown defaults to yesterday
+            return (today - timedelta(days=1)).strftime('%Y%m%d')
     
     def _resolve_partition(self, partition_template: str, data_date: str) -> str:
         """
@@ -258,12 +407,38 @@ class ConfigLoader:
         
         Args:
             partition_template: Template like "dt=${data_date}/dp=Japan"
-            data_date: Data date string
+            data_date: Data date string (YYYYMMDD format)
             
         Returns:
             Resolved partition string
         """
-        return partition_template.replace('${data_date}', data_date)
+        result = partition_template
+        
+        # 替换 ${data_date}
+        result = result.replace('${data_date}', data_date)
+        
+        # 替换 ${data_month}（基于数据日期所在月份，格式 YYYYMM）
+        if '${data_month}' in result:
+            data_month = self._compute_data_month(data_date)
+            result = result.replace('${data_month}', data_month)
+        
+        return result
+    
+    def _compute_data_month(self, data_date: str) -> str:
+        """
+        计算数据日期所在月份（YYYYMM）
+        
+        逻辑：取数据日期的 YYYYMM
+        示例：数据日期 20260101 -> data_month = 202601
+        
+        Returns:
+            上个月，格式 YYYYMM
+        """
+        try:
+            parsed = datetime.strptime(data_date, '%Y%m%d')
+        except ValueError:
+            raise ValueError(f"Invalid data_date format: {data_date}. Expected YYYYMMDD")
+        return parsed.strftime('%Y%m')
     
     def _join_hdfs_path(self, base: str, suffix: str) -> str:
         """Join HDFS path parts safely without creating double slashes."""
@@ -356,7 +531,7 @@ if __name__ == '__main__':
         print(f"Generated {len(jobs)} audit jobs")
         for job in jobs:
             print(f"  - {job['table_name']}: {job['hdfs_path']}")
-            print(f"    interface_id: {job['interface_id']}, partner_id: {job['partner_id']}, province_id: {job['province_id']}")
+            print(f"    interface_id: {job['interface_id']}, platform_id: {job['platform_id']}, partner_id: {job['partner_id']}")
     
     except Exception as e:
         print(f"Error: {e}")

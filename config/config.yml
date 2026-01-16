@@ -1,0 +1,742 @@
+# =============================================================================
+# HDFS 数据稽核配置文件（自动生成）
+# =============================================================================
+# 生成时间: 2026-01-16 19:05:39
+# 模板文件: config_template.yml
+# 任务总数: 63
+#
+# 运行时变量说明（由 main.py 动态替换）：
+#   ${data_date}  - 业务日期，格式 YYYYMMDD
+#   ${data_month} - 业务月份（数据日期所在月），格式 YYYYMM
+#
+# 注意: 此文件由 generate_config.py 自动生成，请勿手动修改
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 运行时默认配置
+# -----------------------------------------------------------------------------
+defaults:
+  data_date: ${yesterday}
+  python_concurrency: 5
+  jar_options:
+    threads: 10
+  limits:
+    max_python_concurrency: 20
+    max_jar_threads: 50
+    max_effective_parallelism: 200
+
+# -----------------------------------------------------------------------------
+# 稽核任务列表
+# -----------------------------------------------------------------------------
+schedules:
+
+  # =========================================================================
+  # 任务组 1: 03041 - daily
+  # 原始模板: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_${prov_id}
+  # 展开变量: prov_id -> 31 个任务
+  # =========================================================================
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10100
+    interface_id: '03041'
+    platform_id: '10100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10100
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10200
+    interface_id: '03041'
+    platform_id: '10200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10200
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10300
+    interface_id: '03041'
+    platform_id: '10300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10300
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10400
+    interface_id: '03041'
+    platform_id: '10400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10400
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10500
+    interface_id: '03041'
+    platform_id: '10500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10500
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10600
+    interface_id: '03041'
+    platform_id: '10600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10600
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10700
+    interface_id: '03041'
+    platform_id: '10700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10700
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10800
+    interface_id: '03041'
+    platform_id: '10800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10800
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_10900
+    interface_id: '03041'
+    platform_id: '10900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10900
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11000
+    interface_id: '03041'
+    platform_id: '11000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11000
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11100
+    interface_id: '03041'
+    platform_id: '11100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11100
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11200
+    interface_id: '03041'
+    platform_id: '11200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11200
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11300
+    interface_id: '03041'
+    platform_id: '11300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11300
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11400
+    interface_id: '03041'
+    platform_id: '11400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11400
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11500
+    interface_id: '03041'
+    platform_id: '11500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11500
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11600
+    interface_id: '03041'
+    platform_id: '11600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11600
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11700
+    interface_id: '03041'
+    platform_id: '11700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11700
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11800
+    interface_id: '03041'
+    platform_id: '11800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11800
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_11900
+    interface_id: '03041'
+    platform_id: '11900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11900
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12000
+    interface_id: '03041'
+    platform_id: '12000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12000
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12100
+    interface_id: '03041'
+    platform_id: '12100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12100
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12200
+    interface_id: '03041'
+    platform_id: '12200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12200
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12300
+    interface_id: '03041'
+    platform_id: '12300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12300
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12400
+    interface_id: '03041'
+    platform_id: '12400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12400
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12500
+    interface_id: '03041'
+    platform_id: '12500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12500
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12600
+    interface_id: '03041'
+    platform_id: '12600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12600
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12700
+    interface_id: '03041'
+    platform_id: '12700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12700
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12800
+    interface_id: '03041'
+    platform_id: '12800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12800
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_12900
+    interface_id: '03041'
+    platform_id: '12900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12900
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_13000
+    interface_id: '03041'
+    platform_id: '13000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=13000
+
+  - task_name: P_TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET_13100
+    interface_id: '03041'
+    platform_id: '13100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_SVC_UR_USER_5G_TERM_SWITCH_BASIC_ASSET
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_svc_ur_user_5g_term_switch_basic_asset
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=13100
+
+
+  # =========================================================================
+  # 任务组 2: 07001 - monthly
+  # 原始模板: 70018_P_TO_M_ACCT_AM_PAY_FLOW
+  # 无展开变量，单任务
+  # =========================================================================
+  - task_name: 70018_P_TO_M_ACCT_AM_PAY_FLOW
+    interface_id: '07001'
+    platform_id: '70018'
+    partner_id: '2'
+    period_type: monthly
+    tables:
+    - name: ods_bss.TO_M_ACCT_AM_PAY_FLOW
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_m_acct_am_pay_flow
+      format: orc
+      partition_template: statis_ym=${data_month}
+
+
+  # =========================================================================
+  # 任务组 3: 04038 - daily
+  # 原始模板: ${prov_id}_P_TO_D_EVNT_BU_5G_SA_CDR
+  # 展开变量: prov_id -> 31 个任务
+  # =========================================================================
+  - task_name: 10100_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10100
+
+  - task_name: 10200_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10200
+
+  - task_name: 10300_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10300
+
+  - task_name: 10400_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10400
+
+  - task_name: 10500_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10500
+
+  - task_name: 10600_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10600
+
+  - task_name: 10700_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10700
+
+  - task_name: 10800_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10800
+
+  - task_name: 10900_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '10900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=10900
+
+  - task_name: 11000_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11000
+
+  - task_name: 11100_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11100
+
+  - task_name: 11200_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11200
+
+  - task_name: 11300_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11300
+
+  - task_name: 11400_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11400
+
+  - task_name: 11500_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11500
+
+  - task_name: 11600_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11600
+
+  - task_name: 11700_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11700
+
+  - task_name: 11800_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11800
+
+  - task_name: 11900_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '11900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=11900
+
+  - task_name: 12000_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12000
+
+  - task_name: 12100_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12100
+
+  - task_name: 12200_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12200'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12200
+
+  - task_name: 12300_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12300'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12300
+
+  - task_name: 12400_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12400'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12400
+
+  - task_name: 12500_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12500'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12500
+
+  - task_name: 12600_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12600'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12600
+
+  - task_name: 12700_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12700'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12700
+
+  - task_name: 12800_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12800'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12800
+
+  - task_name: 12900_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '12900'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=12900
+
+  - task_name: 13000_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '13000'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=13000
+
+  - task_name: 13100_P_TO_D_EVNT_BU_5G_SA_CDR
+    interface_id: '04038'
+    platform_id: '13100'
+    partner_id: '2'
+    period_type: daily
+    tables:
+    - name: ods_bss.TO_D_EVNT_BU_5G_SA_CDR
+      hdfs_path: hdfs://beh002/hive/warehouse/ods_bss.db/to_d_evnt_bu_5G_sa_cdr
+      format: orc
+      partition_template: statis_ymd=${data_date}/prov_id=13100
+

@@ -73,26 +73,37 @@ class CounterResult:
 class HdfsCounterClient:
     """Client for hdfs-counter.jar CLI tool"""
     
-    def __init__(self, jar_path: str, java_home: Optional[str] = None,
+    # 环境变量名
+    ENV_JAR_PATH = 'HDFS_COUNTER_JAR'
+    
+    def __init__(self, jar_path: Optional[str] = None, java_home: Optional[str] = None,
                  hadoop_conf_dir: Optional[str] = None,
                  timeout: int = 3600):
         """
         Initialize HDFS Counter client
         
         Args:
-            jar_path: Path to hdfs-counter.jar
-            java_home: Optional JAVA_HOME path
-            hadoop_conf_dir: Optional HADOOP_CONF_DIR path
+            jar_path: Path to hdfs-counter.jar (可选，优先从环境变量 HDFS_COUNTER_JAR 获取)
+            java_home: Optional JAVA_HOME path (默认从环境变量 JAVA_HOME 获取)
+            hadoop_conf_dir: Optional HADOOP_CONF_DIR path (默认从环境变量 HADOOP_CONF_DIR 获取)
             timeout: Command timeout in seconds (default: 1 hour)
         """
-        self.jar_path = jar_path
-        self.java_home = java_home
-        self.hadoop_conf_dir = hadoop_conf_dir
+        # 优先级: 参数 > 环境变量
+        self.jar_path = jar_path or os.environ.get(self.ENV_JAR_PATH)
+        self.java_home = java_home or os.environ.get('JAVA_HOME')
+        self.hadoop_conf_dir = hadoop_conf_dir or os.environ.get('HADOOP_CONF_DIR')
         self.timeout = timeout
         
+        # Validate jar path is provided
+        if not self.jar_path:
+            raise ValueError(
+                f"hdfs-counter.jar path not provided. "
+                f"Set via parameter or environment variable {self.ENV_JAR_PATH}"
+            )
+        
         # Validate jar exists
-        if not os.path.exists(jar_path):
-            raise FileNotFoundError(f"hdfs-counter.jar not found: {jar_path}")
+        if not os.path.exists(self.jar_path):
+            raise FileNotFoundError(f"hdfs-counter.jar not found: {self.jar_path}")
         
         # Determine java command
         if java_home:
@@ -237,21 +248,37 @@ if __name__ == '__main__':
     
     logging.basicConfig(level=logging.DEBUG)
     
-    if len(sys.argv) < 4:
-        print("Usage: python hdfs_counter_client.py <jar_path> <hdfs_path> <format>")
+    # 支持两种调用方式:
+    # 1. python hdfs_counter_client.py <hdfs_path> <format>  (jar 从环境变量 HDFS_COUNTER_JAR 获取)
+    # 2. python hdfs_counter_client.py <jar_path> <hdfs_path> <format>  (显式指定 jar)
+    
+    if len(sys.argv) == 3:
+        # 从环境变量获取 jar_path
+        jar_path = None
+        hdfs_path = sys.argv[1]
+        file_format = sys.argv[2]
+    elif len(sys.argv) >= 4:
+        jar_path = sys.argv[1]
+        hdfs_path = sys.argv[2]
+        file_format = sys.argv[3]
+    else:
+        print("Usage:")
+        print("  python hdfs_counter_client.py <hdfs_path> <format>")
+        print("    (requires env HDFS_COUNTER_JAR)")
+        print("  python hdfs_counter_client.py <jar_path> <hdfs_path> <format>")
         sys.exit(1)
     
-    jar_path = sys.argv[1]
-    hdfs_path = sys.argv[2]
-    file_format = sys.argv[3]
-    
-    client = HdfsCounterClient(jar_path)
-    result = client.count(hdfs_path, file_format)
-    
-    print(f"Path: {result.path}")
-    print(f"Row count: {result.row_count}")
-    print(f"File count: {result.file_count}")
-    print(f"Status: {result.status}")
-    if result.errors:
-        print(f"Errors: {result.errors}")
+    try:
+        client = HdfsCounterClient(jar_path)
+        result = client.count(hdfs_path, file_format)
+        
+        print(f"Path: {result.path}")
+        print(f"Row count: {result.row_count}")
+        print(f"File count: {result.file_count}")
+        print(f"Status: {result.status}")
+        if result.errors:
+            print(f"Errors: {result.errors}")
+    except (ValueError, FileNotFoundError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
