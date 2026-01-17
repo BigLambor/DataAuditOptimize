@@ -12,9 +12,6 @@ clickhouse-driver>=0.2.6
 # Connection pooling
 DBUtils>=3.0.3
 
-# Date/time utilities
-python-dateutil>=2.8.2
-
 # CLI argument parsing (built-in, but listed for clarity)
 # argparse is part of standard library
 

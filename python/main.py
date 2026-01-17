@@ -40,7 +40,8 @@ class HdfsAuditRunner:
     
     def __init__(self, config_path: str, db_config_path: str, jar_path: str,
                  java_home: Optional[str] = None,
-                 hadoop_conf_dir: Optional[str] = None):
+                 hadoop_conf_dir: Optional[str] = None,
+                 skip_db_init: bool = False):
         """
         Initialize audit runner
         
@@ -63,9 +64,11 @@ class HdfsAuditRunner:
             hadoop_conf_dir=hadoop_conf_dir
         )
         
-        self.db_writer = AuditDbWriter(
-            db_config=self.db_config_loader.get_mysql_config()
-        )
+        self.db_writer: Optional[AuditDbWriter] = None
+        if not skip_db_init:
+            self.db_writer = AuditDbWriter(
+                db_config=self.db_config_loader.get_mysql_config()
+            )
         
         # Initialize task fetcher from ClickHouse if configured
         self.task_fetcher: Optional[TaskFetcher] = None
@@ -124,6 +127,9 @@ class HdfsAuditRunner:
         start_time = datetime.now()
         logger.info(f"Starting audit run at {start_time}")
         
+        # Initialize end_time to None (will be set if using ClickHouse task fetcher)
+        end_time: Optional[datetime] = None
+        
         # Resolve data date (if explicitly provided)
         # If data_date is None, build_audit_jobs will auto-resolve per period_type
         if data_date is not None:
@@ -133,6 +139,10 @@ class HdfsAuditRunner:
             resolved_date = None
             logger.info("Data date: auto (daily/monthly -> yesterday, hourly/minutely -> today)")
         
+        # Ensure DB writer available when needed
+        if not dry_run and self.db_writer is None:
+            raise RuntimeError("Database writer is not initialized (dry-run mode requires skip_db_init)")
+
         # Get completed tasks
         if task_names:
             # Use provided task names
@@ -159,6 +169,7 @@ class HdfsAuditRunner:
                     watermark_path = os.path.normpath(os.path.join(base_dir, watermark_path))
             if watermark_enabled and (self._clickhouse_config or {}).get("watermark_enabled") is False:
                 watermark_enabled = False
+            advance_on_failure = bool((self._clickhouse_config or {}).get("watermark_advance_on_failure", False))
             if (self._clickhouse_config or {}).get("watermark_overlap_seconds") is not None:
                 try:
                     watermark_overlap_seconds = int((self._clickhouse_config or {}).get("watermark_overlap_seconds"))
@@ -242,22 +253,25 @@ class HdfsAuditRunner:
             logger.info(f"Using all configured tasks: {completed_tasks}")
         
         # Build audit jobs
+        completed_tasks_count = len(completed_tasks) if completed_tasks is not None else 0
         jobs = self.config_loader.build_audit_jobs(completed_tasks, resolved_date)
         logger.info(f"Generated {len(jobs)} audit jobs")
         
         if not jobs:
             logger.warning("No audit jobs to execute")
-            # Even if no jobs, advance watermark on success to avoid re-querying the same window forever.
+            # If ClickHouse returns zero tasks, we can safely advance the watermark to avoid re-querying.
+            # If ClickHouse returned tasks but no jobs were built (e.g., config mismatch), do NOT advance.
             try:
                 if (
                     watermark_enabled
                     and watermark_path
                     and isinstance(self.task_fetcher, ClickHouseTaskFetcher)
-                    and 'end_time' in locals()
+                    and end_time is not None
                     and not task_names
+                    and completed_tasks_count == 0
                 ):
                     FileWatermarkStore(watermark_path).save(end_time)
-                    logger.info(f"Watermark updated (no jobs): {watermark_path} -> {end_time}")
+                    logger.info(f"Watermark updated (no tasks): {watermark_path} -> {end_time}")
             except Exception as e:
                 logger.warning(f"Failed to update watermark (no jobs): {e}")
             return {'total': 0, 'success': 0, 'partial': 0, 'failed': 0}
@@ -315,15 +329,21 @@ class HdfsAuditRunner:
             f"Failed: {results['failed']}"
         )
 
-        # Advance watermark only when the run is successful (avoid missing tasks on retry)
+        # Advance watermark only when at least one job executed.
+        # Default: require no failed/partial. Optional override: allow advancing even with failures.
         try:
             if (
                 watermark_enabled
                 and watermark_path
                 and isinstance(self.task_fetcher, ClickHouseTaskFetcher)
-                and 'end_time' in locals()
-                and results.get('failed', 0) == 0
+                and end_time is not None
+                and results.get('total', 0) > 0
                 and not task_names
+                and not dry_run
+                and (
+                    advance_on_failure
+                    or (results.get('failed', 0) == 0 and results.get('partial', 0) == 0)
+                )
             ):
                 FileWatermarkStore(watermark_path).save(end_time)
                 logger.info(f"Watermark updated: {watermark_path} -> {end_time}")
@@ -339,6 +359,8 @@ class HdfsAuditRunner:
             
             try:
                 result = self.counter_client.count_job(job)
+                if not self.db_writer:
+                    raise RuntimeError("Database writer is not initialized")
                 self.db_writer.write_job_result(job, result)
                 self._update_results(results, job, result)
             except Exception as e:
@@ -377,6 +399,8 @@ class HdfsAuditRunner:
                 try:
                     job, result = future.result()
                     # Write to database (thread-safe with connection pool)
+                    if not self.db_writer:
+                        raise RuntimeError("Database writer is not initialized")
                     self.db_writer.write_job_result(job, result)
                     self._update_results(results, job, result)
                     logger.info(f"Completed {completed}/{len(jobs)}: {job['table_name']} - {result.status}")
@@ -465,8 +489,8 @@ Examples:
     
     parser.add_argument(
         '--config', '-c',
-        default='../config/config.yaml',
-        help='Path to config.yaml (default: ../config/config.yaml)'
+        default='../config/config.yml',
+        help='Path to config.yml (default: ../config/config.yml)'
     )
     
     parser.add_argument(
@@ -599,7 +623,8 @@ def main():
             db_config_path=db_config_path,
             jar_path=jar_path,
             java_home=args.java_home,
-            hadoop_conf_dir=args.hadoop_conf_dir
+            hadoop_conf_dir=args.hadoop_conf_dir,
+            skip_db_init=args.dry_run
         )
         
         # Run audit

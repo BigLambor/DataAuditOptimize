@@ -191,9 +191,10 @@ class ConfigLoader:
         Build list of audit jobs based on completed tasks
         
         Args:
-            completed_tasks: 已完成任务，支持两种格式:
+            completed_tasks: 已完成任务，支持三种格式:
                 - List[str]: 简单的任务名列表（旧格式，向后兼容）
-                - Dict[str, Dict]: 任务名 -> 元数据字典（新格式）
+                - Dict[str, Dict[str, Any]]: 任务名 -> 单个元数据字典（旧格式）
+                - Dict[str, Dict[str, Dict]]: 任务名 -> {批次号 -> 元数据}（新格式，支持多批次）
                   元数据包含: period_type, batch_no, data_date, data_month, data_hour
             data_date: Data date in YYYYMMDD format, or None to auto-resolve
                        - If provided: used for all jobs (overrides batch_no derived date)
@@ -205,13 +206,8 @@ class ConfigLoader:
         jobs = []
         jar_options = self.get_jar_options()
         
-        # 统一转换为 dict 格式，方便后续处理
-        if isinstance(completed_tasks, list):
-            # 旧格式：List[str] -> Dict[str, None]
-            completed_tasks_dict = {name: None for name in completed_tasks}
-        else:
-            # 新格式：已经是 dict
-            completed_tasks_dict = completed_tasks
+        # 统一转换为新格式: {task_name: {batch_no: metadata}}
+        completed_tasks_dict = self._normalize_completed_tasks(completed_tasks)
         
         for schedule in self.get_schedules():
             task_name = schedule['task_name']
@@ -219,8 +215,10 @@ class ConfigLoader:
             if task_name not in completed_tasks_dict:
                 continue
             
-            # 获取任务元数据（如果有）
-            task_meta = completed_tasks_dict.get(task_name)
+            # 获取该任务的所有批次
+            task_batches = completed_tasks_dict.get(task_name)
+            if not task_batches:
+                continue
             
             # 获取调度级别的字段
             interface_id = str(schedule.get('interface_id', ''))
@@ -228,115 +226,240 @@ class ConfigLoader:
             partner_id = str(schedule.get('partner_id', ''))
             config_period_type = schedule.get('period_type', 'daily')
             
-            # 校验 period_type 是否一致
-            if task_meta and task_meta.get('period_type'):
-                ck_period_type = task_meta.get('period_type')
-                if ck_period_type != config_period_type:
-                    logger.warning(
-                        f"任务 {task_name} 的 period_type 不匹配: "
-                        f"config={config_period_type}, ClickHouse={ck_period_type}，跳过此任务"
-                    )
-                    continue
-            
-            # 解析业务日期，优先级: 命令行参数 > batch_no解析 > period_type自动推导
-            if data_date is not None:
-                resolved_month = data_date[:6] if len(data_date) >= 6 else None
-                resolved_hour = None
-                # monthly 任务不需要 data_date，只需要 data_month
-                if config_period_type == 'monthly':
-                    resolved_date = None
-                else:
-                    resolved_date = data_date
-            elif task_meta:
-                # 从 batch_no 解析的日期
-                resolved_date = task_meta.get('data_date')
-                resolved_month = task_meta.get('data_month')
-                resolved_hour = task_meta.get('data_hour')
+            # 遍历每个批次
+            for batch_no, task_meta in task_batches.items():
+                # 校验 period_type 是否一致
+                if task_meta and task_meta.get('period_type'):
+                    ck_period_type = task_meta.get('period_type')
+                    if ck_period_type != config_period_type:
+                        logger.warning(
+                            f"任务 {task_name} 批次 {batch_no} 的 period_type 不匹配: "
+                            f"config={config_period_type}, ClickHouse={ck_period_type}，跳过此批次"
+                        )
+                        continue
                 
-                # 如果 batch_no 没有解析出日期，回退到自动推导
-                if config_period_type == 'monthly':
-                    # monthly 任务：确保 data_month 有值，data_date 强制为 None
-                    resolved_date = None
-                    if not resolved_month:
-                        fallback_date = self.resolve_data_date_for_period(config_period_type)
-                        resolved_month = fallback_date[:6]
-                        logger.warning(f"任务 {task_name} 的 data_month 为空，使用自动推导: {resolved_month}")
-                elif not resolved_date:
-                    # daily/hourly 任务：确保 data_date 有值
-                    resolved_date = self.resolve_data_date_for_period(config_period_type)
-                    resolved_month = resolved_date[:6] if resolved_date else None
-            else:
-                # 旧格式（list 而非 dict），使用自动推导
-                resolved_date = self.resolve_data_date_for_period(config_period_type)
-                resolved_month = resolved_date[:6] if resolved_date else None
-                resolved_hour = None
-                
-                # monthly 任务可以不需要 data_date
-                if config_period_type == 'monthly':
-                    resolved_date = None
-            
-            for table in schedule['tables']:
-                # Build full HDFS path with optional partition
-                partition_template = table.get('partition_template')
-                if partition_template:
-                    partition = self._resolve_partition_extended(
-                        partition_template, 
-                        data_date=resolved_date,
-                        data_month=resolved_month,
-                        data_hour=resolved_hour
-                    )
-                    full_path = self._join_hdfs_path(table['hdfs_path'], partition)
-                else:
-                    full_path = table['hdfs_path']
-                
-                # Get threads (table-level override or global default)
-                threads = table.get('threads', jar_options.get('threads', 10))
-                if not isinstance(threads, int):
-                    try:
-                        threads = int(threads)
-                    except Exception:
-                        threads = jar_options.get('threads', 10)
-                threads = max(1, self.clamp_jar_threads(threads))
-                
-                # Get delimiter for textfile
-                delimiter = table.get('delimiter', '\\n')
-                
-                # batch_no: 确保为字符串，避免 None
-                batch_no = ''
-                if task_meta and task_meta.get('batch_no'):
-                    batch_no = str(task_meta.get('batch_no'))
-                
-                job = {
-                    'task_name': task_name,
-                    'interface_id': interface_id,
-                    'platform_id': platform_id,
-                    'partner_id': partner_id,
-                    'period_type': config_period_type,
-                    'table_name': table['name'],
-                    'hdfs_path': full_path,
-                    'format': table['format'].lower(),
-                    'threads': threads,
-                    'delimiter': delimiter,
-                    'data_date': resolved_date,
-                    'data_month': resolved_month,
-                    'data_hour': resolved_hour,
-                    'batch_no': batch_no
-                }
-                
-                # 校验 hdfs_path 是否包含未替换的变量
-                if '${' in full_path:
-                    logger.warning(
-                        f"跳过任务 {task_name}/{table['name']}: hdfs_path 包含未替换的变量: {full_path}"
-                    )
-                    continue
-                
-                jobs.append(job)
-                logger.info(
-                    f"Created audit job: table={table['name']}, path={full_path}, "
-                    f"data_date={resolved_date}, data_month={resolved_month}, data_hour={resolved_hour}"
+                # 解析业务日期，优先级: 命令行参数 > batch_no解析 > period_type自动推导
+                resolved_date, resolved_month, resolved_hour = self._resolve_dates_for_job(
+                    task_name=task_name,
+                    task_meta=task_meta,
+                    data_date=data_date,
+                    config_period_type=config_period_type
                 )
+                
+                # 为该批次的每个表生成 job
+                for table in schedule['tables']:
+                    job = self._build_single_job(
+                        schedule=schedule,
+                        table=table,
+                        task_meta=task_meta,
+                        jar_options=jar_options,
+                        resolved_date=resolved_date,
+                        resolved_month=resolved_month,
+                        resolved_hour=resolved_hour
+                    )
+                    
+                    if job is not None:
+                        jobs.append(job)
         
         return jobs
+    
+    def _normalize_completed_tasks(self, completed_tasks) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        """
+        将各种格式的 completed_tasks 统一转换为新格式
+        
+        新格式: {task_name: {batch_no: metadata}}
+        """
+        if isinstance(completed_tasks, list):
+            # List[str] -> {task_name: {'': default_metadata}}
+            return {
+                name: {
+                    '': {
+                        'period_type': None,
+                        'batch_no': '',
+                        'data_date': None,
+                        'data_month': None,
+                        'data_hour': None
+                    }
+                }
+                for name in completed_tasks
+            }
+        
+        if not isinstance(completed_tasks, dict) or not completed_tasks:
+            return {}
+        
+        # 检测是新格式还是旧格式
+        first_value = next(iter(completed_tasks.values()), None)
+        
+        if first_value is None:
+            # {task_name: None} -> {task_name: {'': default_metadata}}
+            return {
+                name: {
+                    '': {
+                        'period_type': None,
+                        'batch_no': '',
+                        'data_date': None,
+                        'data_month': None,
+                        'data_hour': None
+                    }
+                }
+                for name in completed_tasks.keys()
+            }
+        
+        if isinstance(first_value, dict):
+            # 判断内层结构
+            inner_first = next(iter(first_value.values()), None) if first_value else None
+            
+            if isinstance(inner_first, dict) and 'period_type' in inner_first:
+                # 新格式: {task_name: {batch_no: metadata}}
+                return completed_tasks
+            
+            if 'period_type' in first_value or 'batch_no' in first_value:
+                # 旧格式: {task_name: metadata} -> {task_name: {batch_no: metadata}}
+                result = {}
+                for task_name, metadata in completed_tasks.items():
+                    if isinstance(metadata, dict):
+                        batch_no = str(metadata.get('batch_no', '') or '')
+                        result[task_name] = {batch_no: metadata}
+                    else:
+                        result[task_name] = {
+                            '': {
+                                'period_type': None,
+                                'batch_no': '',
+                                'data_date': None,
+                                'data_month': None,
+                                'data_hour': None
+                            }
+                        }
+                return result
+        
+        # 未知格式，返回空
+        logger.warning(f"Unknown completed_tasks format, returning empty dict")
+        return {}
+    
+    def _resolve_dates_for_job(self, task_name: str, task_meta: Optional[Dict[str, Any]],
+                               data_date: Optional[str], config_period_type: str) -> tuple:
+        """
+        解析业务日期
+        
+        优先级: 命令行参数 > batch_no解析 > period_type自动推导
+        
+        Returns:
+            (resolved_date, resolved_month, resolved_hour)
+        """
+        if data_date is not None:
+            resolved_month = data_date[:6] if len(data_date) >= 6 else None
+            resolved_hour = None
+            # monthly 任务不需要 data_date，只需要 data_month
+            if config_period_type == 'monthly':
+                resolved_date = None
+            else:
+                resolved_date = data_date
+        elif task_meta:
+            # 从 batch_no 解析的日期
+            resolved_date = task_meta.get('data_date')
+            resolved_month = task_meta.get('data_month')
+            resolved_hour = task_meta.get('data_hour')
+            
+            # 如果 batch_no 没有解析出日期，回退到自动推导
+            if config_period_type == 'monthly':
+                # monthly 任务：确保 data_month 有值，data_date 强制为 None
+                resolved_date = None
+                if not resolved_month:
+                    fallback_date = self.resolve_data_date_for_period(config_period_type)
+                    resolved_month = fallback_date[:6]
+                    logger.warning(f"任务 {task_name} 的 data_month 为空，使用自动推导: {resolved_month}")
+            elif not resolved_date:
+                # daily/hourly 任务：确保 data_date 有值
+                resolved_date = self.resolve_data_date_for_period(config_period_type)
+                resolved_month = resolved_date[:6] if resolved_date else None
+        else:
+            # 无元数据，使用自动推导
+            resolved_date = self.resolve_data_date_for_period(config_period_type)
+            resolved_month = resolved_date[:6] if resolved_date else None
+            resolved_hour = None
+            
+            # monthly 任务可以不需要 data_date
+            if config_period_type == 'monthly':
+                resolved_date = None
+        
+        return resolved_date, resolved_month, resolved_hour
+    
+    def _build_single_job(self, schedule: Dict[str, Any], table: Dict[str, Any],
+                          task_meta: Optional[Dict[str, Any]], jar_options: Dict[str, Any],
+                          resolved_date: Optional[str], resolved_month: Optional[str],
+                          resolved_hour: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        构建单个 audit job
+        
+        Returns:
+            job dict, or None if should be skipped
+        """
+        task_name = schedule['task_name']
+        interface_id = str(schedule.get('interface_id', ''))
+        platform_id = str(schedule.get('platform_id', ''))
+        partner_id = str(schedule.get('partner_id', ''))
+        config_period_type = schedule.get('period_type', 'daily')
+        
+        # Build full HDFS path with optional partition
+        partition_template = table.get('partition_template')
+        if partition_template:
+            partition = self._resolve_partition_extended(
+                partition_template, 
+                data_date=resolved_date,
+                data_month=resolved_month,
+                data_hour=resolved_hour
+            )
+            full_path = self._join_hdfs_path(table['hdfs_path'], partition)
+        else:
+            full_path = table['hdfs_path']
+        
+        # Get threads (table-level override or global default)
+        threads = table.get('threads', jar_options.get('threads', 10))
+        if not isinstance(threads, int):
+            try:
+                threads = int(threads)
+            except Exception:
+                threads = jar_options.get('threads', 10)
+        threads = max(1, self.clamp_jar_threads(threads))
+        
+        # Get delimiter for textfile
+        delimiter = table.get('delimiter', '\\n')
+        
+        # batch_no: 确保为字符串，避免 None
+        batch_no = ''
+        if task_meta and task_meta.get('batch_no'):
+            batch_no = str(task_meta.get('batch_no'))
+        
+        job = {
+            'task_name': task_name,
+            'interface_id': interface_id,
+            'platform_id': platform_id,
+            'partner_id': partner_id,
+            'period_type': config_period_type,
+            'table_name': table['name'],
+            'hdfs_path': full_path,
+            'format': table['format'].lower(),
+            'threads': threads,
+            'delimiter': delimiter,
+            'data_date': resolved_date,
+            'data_month': resolved_month,
+            'data_hour': resolved_hour,
+            'batch_no': batch_no
+        }
+        
+        # 校验 hdfs_path 是否包含未替换的变量
+        if '${' in full_path:
+            logger.warning(
+                f"跳过任务 {task_name}/{table['name']}: hdfs_path 包含未替换的变量: {full_path}"
+            )
+            return None
+        
+        logger.info(
+            f"Created audit job: table={table['name']}, path={full_path}, "
+            f"batch_no={batch_no}, data_date={resolved_date}, data_month={resolved_month}"
+        )
+        
+        return job
     
     def _resolve_partition_extended(self, partition_template: str, 
                                     data_date: Optional[str] = None,
@@ -474,14 +597,45 @@ class DbConfigLoader:
         logger.info(f"Loaded database configuration from {self.config_path}")
     
     def get_mysql_config(self) -> Dict[str, Any]:
-        """Get MySQL connection configuration"""
-        mysql_config = self.config.get('mysql', {})
+        """
+        Get MySQL connection configuration
+        
+        Environment variables override config file values:
+            MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD, MYSQL_CHARSET
+        """
+        mysql_config = self.config.get('mysql', {}).copy()
+        
+        # Environment variable overrides (priority: env > config file)
+        env_mappings = {
+            'host': 'MYSQL_HOST',
+            'port': 'MYSQL_PORT',
+            'database': 'MYSQL_DATABASE',
+            'user': 'MYSQL_USER',
+            'password': 'MYSQL_PASSWORD',
+            'charset': 'MYSQL_CHARSET',
+        }
+        
+        for config_key, env_var in env_mappings.items():
+            env_value = os.environ.get(env_var)
+            if env_value is not None:
+                # Convert port to int if needed
+                if config_key == 'port':
+                    try:
+                        mysql_config[config_key] = int(env_value)
+                    except ValueError:
+                        logger.warning(f"Invalid {env_var} value: {env_value}, using config file value")
+                else:
+                    mysql_config[config_key] = env_value
+                logger.debug(f"MySQL {config_key} loaded from environment variable {env_var}")
         
         # Validate required fields
         required = ['host', 'port', 'database', 'user', 'password']
         for field in required:
-            if field not in mysql_config:
-                raise ValueError(f"MySQL configuration missing required field: {field}")
+            if field not in mysql_config or mysql_config[field] is None:
+                raise ValueError(
+                    f"MySQL configuration missing required field: {field}. "
+                    f"Set via config file or environment variable {env_mappings.get(field, field.upper())}"
+                )
         
         return mysql_config
     
@@ -489,22 +643,76 @@ class DbConfigLoader:
         """
         Get ClickHouse connection configuration
         
+        Supports two formats:
+            - hosts: List of hosts for high availability (recommended)
+            - host: Single host (backward compatible)
+        
+        Environment variables override config file values:
+            CLICKHOUSE_HOST: Single host or comma-separated list (e.g., "host1,host2,host3")
+            CLICKHOUSE_PORT, CLICKHOUSE_DATABASE, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD
+        
         Returns:
             ClickHouse configuration dict
         """
-        ch_config = self.config.get('clickhouse', {})
+        ch_config = self.config.get('clickhouse', {}).copy()
         
-        # Validate required fields
-        required = ['host']
-        for field in required:
-            if field not in ch_config:
-                raise ValueError(f"ClickHouse configuration missing required field: {field}")
+        # Environment variable overrides (priority: env > config file)
+        env_mappings = {
+            'port': 'CLICKHOUSE_PORT',
+            'database': 'CLICKHOUSE_DATABASE',
+            'user': 'CLICKHOUSE_USER',
+            'password': 'CLICKHOUSE_PASSWORD',
+        }
+        
+        for config_key, env_var in env_mappings.items():
+            env_value = os.environ.get(env_var)
+            if env_value is not None:
+                # Convert port to int if needed
+                if config_key == 'port':
+                    try:
+                        ch_config[config_key] = int(env_value)
+                    except ValueError:
+                        logger.warning(f"Invalid {env_var} value: {env_value}, using config file value")
+                else:
+                    ch_config[config_key] = env_value
+                logger.debug(f"ClickHouse {config_key} loaded from environment variable {env_var}")
+        
+        # Special handling for CLICKHOUSE_HOST: supports comma-separated list for HA
+        # e.g., "host1,host2,host3" -> hosts: ["host1", "host2", "host3"]
+        env_host = os.environ.get('CLICKHOUSE_HOST')
+        if env_host:
+            host_list = [h.strip() for h in env_host.split(',') if h.strip()]
+            if len(host_list) > 1:
+                # Multiple hosts -> set as 'hosts' list
+                ch_config['hosts'] = host_list
+                ch_config.pop('host', None)  # Remove single host if exists
+                logger.debug(f"ClickHouse hosts loaded from CLICKHOUSE_HOST: {host_list}")
+            elif len(host_list) == 1:
+                # Single host
+                ch_config['host'] = host_list[0]
+                logger.debug(f"ClickHouse host loaded from CLICKHOUSE_HOST: {host_list[0]}")
+        
+        # Validate: need either 'hosts' list or 'host' string
+        has_hosts = ch_config.get('hosts') and isinstance(ch_config.get('hosts'), list) and len(ch_config.get('hosts')) > 0
+        has_host = ch_config.get('host') and ch_config.get('host') is not None
+        
+        if not has_hosts and not has_host:
+            raise ValueError(
+                "ClickHouse configuration missing required field: 'hosts' or 'host'. "
+                "Set CLICKHOUSE_HOST environment variable (supports comma-separated list for HA)"
+            )
         
         return ch_config
     
     def has_clickhouse_config(self) -> bool:
-        """Check if ClickHouse configuration exists"""
-        return 'clickhouse' in self.config and 'host' in self.config.get('clickhouse', {})
+        """Check if ClickHouse configuration exists (supports both 'hosts' list and 'host' string)"""
+        if 'clickhouse' not in self.config:
+            return False
+        ch_config = self.config.get('clickhouse', {})
+        # Check for either hosts list or host string
+        has_hosts = ch_config.get('hosts') and isinstance(ch_config.get('hosts'), list) and len(ch_config.get('hosts')) > 0
+        has_host = 'host' in ch_config and ch_config.get('host')
+        return has_hosts or has_host
 
 
 if __name__ == '__main__':

@@ -1,41 +1,62 @@
 # =============================================================================
 # 数据库连接配置
 # =============================================================================
+# 
+# 敏感信息支持环境变量覆盖（优先级：环境变量 > 配置文件）：
+#   MySQL:      MYSQL_HOST, MYSQL_PORT, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD
+#   ClickHouse: CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_DATABASE, CLICKHOUSE_USER, CLICKHOUSE_PASSWORD
+#
+# 说明：
+#   - CLICKHOUSE_HOST 支持逗号分隔的多节点配置，如 "host1,host2,host3"
+#   - 生产环境建议所有敏感信息通过环境变量设置
+#
+# =============================================================================
 
 # -----------------------------------------------------------------------------
 # MySQL 配置 - 用于存储稽核结果
 # -----------------------------------------------------------------------------
 mysql:
-  host: "localhost"
-  port: 3306
-  database: "data_audit"
-  user: "audit_user"
-  password: "your_password_here"
+  host: "localhost"              # 或设置 MYSQL_HOST 环境变量
+  port: 3306                     # 或设置 MYSQL_PORT 环境变量
+  database: "data_audit"         # 或设置 MYSQL_DATABASE 环境变量
+  user: "audit_user"             # 或设置 MYSQL_USER 环境变量
+  password: ""                   # 建议通过 MYSQL_PASSWORD 环境变量设置
   charset: "utf8mb4"
 
 # -----------------------------------------------------------------------------
 # ClickHouse 配置 - 用于从调度平台获取已完成任务清单
 # -----------------------------------------------------------------------------
 clickhouse:
-  # ClickHouse 集群节点（任选一个节点连接即可，Native 协议默认端口 9000）
-  # 可用节点: 10.252.115.31, 10.252.115.35, 10.252.115.52
-  host: "10.252.115.31"
-  port: 9000                    # Native 协议端口，HTTP 端口通常是 8123
-  database: "uops_daas"
-  user: "default"              # 根据实际情况修改
-  password: ""                 # 根据实际情况修改
+  # ClickHouse 集群节点（高可用配置）
+  # 使用 hosts 列表实现客户端侧故障转移：
+  #   - 第一个节点为主节点
+  #   - 其余节点为备用节点，主节点不可用时自动切换
+  hosts:
+    - "10.252.115.31"          # 主节点
+    - "10.252.115.35"          # 备用节点 1
+    - "10.252.115.52"          # 备用节点 2
+  # 或使用单节点配置（向后兼容）:
+  # host: "10.252.115.31"      # 或设置 CLICKHOUSE_HOST 环境变量
+  # 
+  # 环境变量 CLICKHOUSE_HOST 支持逗号分隔多节点: "host1,host2,host3"
+  
+  port: 9000                   # 或设置 CLICKHOUSE_PORT 环境变量（Native 协议端口）
+  database: "uops_daas"        # 或设置 CLICKHOUSE_DATABASE 环境变量
+  user: "default"              # 或设置 CLICKHOUSE_USER 环境变量
+  password: ""                 # 建议通过 CLICKHOUSE_PASSWORD 环境变量设置
+  
   # 时区口径（可选）：用于把 hours_lookback 的窗口与 ClickHouse 的 end_time 对齐
   # 常见取值: "Asia/Shanghai", "UTC"
   timezone: "Asia/Shanghai"
+  
   # -----------------------------------------------------------------------------
-  # Watermark 增量拉取（推荐开启，用于“保证不漏/不断点”）
+  # Watermark 增量拉取（推荐开启，用于"保证不漏/不断点"）
   # -----------------------------------------------------------------------------
   # 说明：
   #   - 启用后，会把上次成功运行的窗口 end_time 持久化到文件（watermark_path）
   #   - 下次从该时间点继续查询：end_time >= last_end_time AND end_time < now
   #   - 并额外回扫 watermark_overlap_seconds，用于抵抗 ClickHouse 写入/同步延迟
   #
-  # 可选配置：
   watermark_enabled: true
   watermark_path: "../state/clickhouse_watermark.json"
   watermark_overlap_seconds: 600   # 默认 10 分钟
@@ -43,6 +64,10 @@ clickhouse:
   # 会把单次查询窗口限制为 watermark_max_window_hours（成功后 watermark 推进到该窗口 end_time，
   # 下次继续追赶，直到追平当前时间）。
   watermark_max_window_hours: 24.0
+  # 当本次稽核存在失败/部分成功时，是否仍然推进 watermark（默认 false）
+  # 建议仅在"失败任务有单独补跑机制"时开启，以避免漏数风险
+  watermark_advance_on_failure: false
+  
   # 查询已完成任务的 SQL 模板
   # 可用变量: {start_time}, {end_time}, {data_date}
   # 返回字段: task_name, period_type, batch_no（用于解析业务日期）
@@ -68,16 +93,17 @@ clickhouse:
 #   charset:  字符集，推荐 utf8mb4
 #
 # ClickHouse 配置:
-#   host:     ClickHouse 服务器地址
+#   hosts:    ClickHouse 服务器地址列表（高可用）
+#   host:     ClickHouse 单节点地址（向后兼容）
 #   port:     ClickHouse Native 协议端口，默认 9000
 #   database: 调度平台数据库名称
 #   user:     ClickHouse 用户名
 #   password: ClickHouse 密码
 #   query_template: 查询已完成任务的 SQL 模板
-#                   - 需返回 task_name 字段
+#                   - 需返回 task_name, period_type, batch_no 字段
 #                   - 支持 {start_time}, {end_time} 变量
 #
 # 安全提示:
-#   - 生产环境建议使用环境变量或密钥管理服务存储密码
+#   - 生产环境建议使用环境变量存储密码
 #   - 不要将包含真实密码的配置文件提交到版本控制系统
 # =============================================================================

@@ -10,12 +10,15 @@ COLLATE utf8mb4_unicode_ci;
 USE data_audit;
 
 -- -----------------------------------------------------------------------------
--- 稽核结果表（追加模式，无主键/唯一键）
+-- 稽核结果表（追加模式）
 -- -----------------------------------------------------------------------------
 -- 存储每次稽核的结果，采用 append 方式写入，支持同一表同一天多次稽核记录
 -- 同一个任务同一天可能会有多条记录（如重跑、不同批次等）
 
 CREATE TABLE IF NOT EXISTS audit_result (
+    -- 自增主键（便于数据管理和问题排查）
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '自增主键',
+    
     -- 任务标识信息
     task_name VARCHAR(200) NOT NULL COMMENT '调度任务名称',
     interface_id VARCHAR(100) NOT NULL DEFAULT '' COMMENT '接口ID',
