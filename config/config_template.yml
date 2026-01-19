@@ -32,13 +32,14 @@ template_vars:
     step: 100
     description: "省份编码，10100-13100 共 31 个值"
 
-  # 小时（24小时）
+  # 小时（24小时，两位补零）
   data_hour:
     type: range
     start: 0
     end: 23
     step: 1
-    description: "小时，0-23 共 24 个值"
+    pad: 2
+    description: "小时，00-23 共 24 个值（两位补零，用于拼接 ${data_date}${data_hour} 形成10位 statis_ymdh）"
 
   # 数据日期所在月份（计算型）
   data_month:
@@ -140,15 +141,16 @@ schedules:
   # -------------------------------------------------------------------------
   # 示例4: 省级小时表（按 prov_id & data_hour 展开 31×24=744 个任务）
   # 注意: period_type=hourly 时，${data_date} 自动解析为 today（当天）
+  # statis_ymdh 格式: ${data_date}${data_hour} = 10位，如 2026011914（2026年1月19日14点）
   # -------------------------------------------------------------------------
-  # - task_name: "${prov_id}_P_TO_H_XXX_${data_hour}"
-  #   interface_id: "xxxxx"
-  #   platform_id: "${prov_id}"
-  #   partner_id: "2"
-  #   period_type: "hourly"
-  #   loop_var: "prov_id&data_hour"
-  #   tables:
-  #     - name: "ods_bss.TO_H_XXX"
-  #       hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_h_xxx"
-  #       format: "orc"
-  #       partition_template: "statis_ymd=${data_date}/hour=${data_hour}/prov_id=${prov_id}/"
+  - task_name: "${prov_id}_P_TO_H_XXX_${data_date}${data_hour}"
+    interface_id: "xxxxx"
+    platform_id: "${prov_id}"
+    partner_id: "2"
+    period_type: "hourly"
+    loop_var: "prov_id&data_hour"
+    tables:
+      - name: "ods_bss.TO_H_XXX"
+        hdfs_path: "hdfs://beh002/hive/warehouse/ods_bss.db/to_h_xxx"
+        format: "orc"
+        partition_template: "statis_ymdh=${data_date}${data_hour}/prov_id=${prov_id}/"

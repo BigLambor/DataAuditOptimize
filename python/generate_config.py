@@ -92,6 +92,7 @@ class TemplateVarGenerator:
         start = var_def.get('start', 0)
         end = var_def.get('end', 0)
         step = var_def.get('step', 1)
+        pad = var_def.get('pad', 0)  # 零填充宽度
 
         # 支持字符串格式的数字
         if isinstance(start, str):
@@ -101,7 +102,13 @@ class TemplateVarGenerator:
         if isinstance(step, str):
             step = int(step)
 
-        return list(range(start, end + 1, step))
+        values = list(range(start, end + 1, step))
+
+        # 如果指定了 pad，则进行零填充（如 pad=2 则 0 -> "00", 1 -> "01"）
+        if pad > 0:
+            values = [str(v).zfill(pad) for v in values]
+
+        return values
 
     def _generate_enum(self, var_def: Dict[str, Any]) -> List[Any]:
         """生成枚举型变量值"""
